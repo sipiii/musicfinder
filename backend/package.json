@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {
   "name": "musicfinder-api",
   "version": "1.0.0",
@@ -14,6 +13,3 @@
     "cors": "^2.8.5"
   }
 }
-=======
-{\n  \"name\": \"music-finder\",\n  \"version\": \"1.0.0\",\n  \"description\": \"API for finding music\",\n  \"main\": \"server.js\",\n  \"scripts\": {\n    \"start\": \"node server.js\"\n  },\n  \"dependencies\": {\n    \"express\": \"^4.17.1\",\n    \"mongoose\": \"^5.10.9\"\n  }\n}
->>>>>>> 49bbe436d7010f53c84c690a9067d1f319ea8fe4
