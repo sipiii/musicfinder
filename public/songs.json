@@ -1,0 +1,27 @@
+[
+  {
+    "title": "Zene 1",
+    "artist": "Ismeretlen",
+    "src": "/songs/zene2.mp3"
+  },
+  {
+    "title": "Zene 2",
+    "artist": "Ismeretlen",
+    "src": "/songs/zene2.mp3"
+  },
+  {
+    "title": "Zene 3",
+    "artist": "Ismeretlen",
+    "src": "/songs/zene2.mp3"
+  },
+  {
+    "title": "Zene 4",
+    "artist": "Ismeretlen",
+    "src": "/songs/zene4.mp3"
+  },
+  {
+    "title": "Zene 5",
+    "artist": "Ismeretlen",
+    "src": "/songs/zene5.mp3"
+  }
+]

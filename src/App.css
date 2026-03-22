@@ -1,0 +1,214 @@
+/* ====== RESET ====== */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #000; /* teljesen fekete háttér */
+  overflow-x: hidden; /* ne csússzon ki semmi oldalra */
+}
+
+/* ====== APP WRAPPER ====== */
+#root {
+  width: 100%;
+  min-height: 100vh;
+  background: #000; /* Spotify-sötét */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ====== OLDAL TARTALOM ====== */
+.App {
+  text-align: center;
+  width: 100%;
+  min-height: 100vh;
+  background: #000; /* fontos: ne legyen fehér csík */
+  color: white;
+}
+
+/* ====== LOGO ====== */
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+/* ====== HEADER ====== */
+.App-header {
+  background-color: #121212; /* Spotify-sötét */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+/* ====== LINK ====== */
+.App-link {
+  color: #1db954; /* Spotify-zöld */
+}
+
+/* ====== ANIM ====== */
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ====== OLDALSÁV (Home / Search / Kedvencek) ====== */
+.sidebar {
+  width: 220px;
+  background: #111;
+  color: white;
+  padding: 20px;
+  border-right: 1px solid #222;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+}
+
+.sidebar button {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #1db954;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-size: 15px;
+  transition: 0.2s;
+}
+
+.sidebar button:hover {
+  background: #1ed760;
+}
+
+/* ====== FŐ TARTALOM ====== */
+.main-content {
+  margin-left: 220px;
+  padding: 20px;
+  min-height: 100vh;
+  background: #000;
+  color: white;
+}
+
+/* ====== KÁRTYÁK ====== */
+.card {
+  background: rgba(255,255,255,0.05);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.card:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* ====== PLAYER ====== */
+.player {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #121212;
+  border-top: 1px solid #282828;
+  padding: 16px 24px;
+  z-index: 999;
+}
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
+img { max-width: 100%; height: auto; }
+
+button, input, select, textarea { font-size: 16px; }
+
+.resp-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tablets */
+@media (max-width: 1024px) {
+  .resp-page-padding { padding: 14px !important; }
+  .resp-sidebar { width: 200px !important; }
+  .resp-player { width: 360px !important; right: 14px !important; bottom: 14px !important; }
+}
+
+/* Phones */
+@media (max-width: 768px) {
+  .resp-shell { flex-direction: column !important; }
+
+  .resp-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 2px solid rgba(255,255,255,0.08) !important;
+    padding: 12px 10px !important;
+  }
+
+  .resp-sidebar-menu { padding-right: 10px !important; }
+
+  .resp-content {
+    width: 100% !important;
+    padding: 12px !important;
+    padding-bottom: 240px !important; /* room for player */
+  }
+
+  h1 { font-size: 22px !important; margin: 10px 0 !important; }
+  h2 { font-size: 18px !important; }
+
+  .resp-player {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    border-radius: 16px !important;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 420px) {
+  .resp-player {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+    padding: 14px !important;
+  }
+  h1 { font-size: 20px !important; }
+}

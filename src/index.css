@@ -1,0 +1,136 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: #000; 
+  overflow: hidden;
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Button styles - no yellow outline */
+button {
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+button:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Lenyomás animáció */
+button:active {
+  transform: scale(0.9);
+}
+
+/* Bezáró gomb hoverre piros */
+.close-btn:hover {
+  color: #ff4d4d !important;
+  border-color: #ff4d4d !important;
+}
+
+/* Slider track */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 4px;
+  background: transparent;
+}
+
+/* Modern thumb */
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1db954;
+  box-shadow: 0 0 4px #1db954;
+  cursor: pointer;
+  margin-top: -4px;
+}
+
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1db954;
+  box-shadow: 0 0 4px #1db954;
+  cursor: pointer;
+}
+
+.control-btn:hover {
+  background: rgba(80, 160, 255, 0.35) !important;
+  transform: scale(1.05);
+}
+.mic-btn:hover {
+  background: rgba(29, 185, 84, 0.35) !important;
+  transform: scale(1.05);
+}
+
+.sideBtn:hover {
+  background: rgba(3, 185, 245, 0.459) !important;
+  transition: background 0.15s ease;
+}
+
+.logo-wrapper {
+  display: inline-flex;
+  padding: 6px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  /* állandó keret */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.logo-wrapper:hover {
+  border-color: rgba(255, 255, 255, 1);
+  /* fényesebb keret */
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+  /* finom glow */
+}
+
+.delete-btn:hover {
+  background: linear-gradient(135deg, #ff0000, #b00000) !important;
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.7);
+}
+
+.favorite-btn:hover {
+  background: linear-gradient(135deg, #f50404, #f90202) !important;
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(255, 64, 129, 0.7);
+}
+
+.close-btn:hover {
+  background: linear-gradient(135deg, #ff0000, #b00000) !important;
+  color: white !important;
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.7);
+}
+
+/* Eltünteti a böngésző saját jelszó-megjelenítő ikonját */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+
+input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+}
