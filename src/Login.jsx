@@ -1,16 +1,14 @@
 import { useState } from "react";
+import { api } from "./api";
 
 export default function Login({ onSwitch, onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState(() => localStorage.getItem("loggedInUser") || "");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [focusedInput, setFocusedInput] = useState(null);
   const [error, setError] = useState("");
 
-  const handleLogin = () => {
-    const savedEmail = localStorage.getItem("loggedInUser");
-    const savedPassword = localStorage.getItem("loggedInPassword");
-
+  const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       setError("Invalid email or password");
       setEmail("");
@@ -18,15 +16,24 @@ export default function Login({ onSwitch, onLogin }) {
       return;
     }
 
-    if (email.trim() === savedEmail && password.trim() === savedPassword) {
+    try {
+      const res = await api('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: email.trim(), password: password.trim() })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Invalid email or password");
+        setEmail("");
+        setPassword("");
+        return;
+      }
+      const data = await res.json();
       setError("");
-      onLogin();
-      return;
+      onLogin(data.user);
+    } catch {
+      setError("Connection error. Is the server running?");
     }
-
-    setError("Invalid email or password");
-    setEmail("");
-    setPassword("");
   };
 
   return (

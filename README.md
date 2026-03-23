@@ -1,18 +1,125 @@
-# React + Vite
+# MusicFinder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web-based music browser that uses YouTube search, with user accounts, favorites, resume times, and profile pictures — all persisted in MySQL.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Frontend:** React + Vite (port 5173)
+- **Backend:** Express.js (port 3000)
+- **Database:** MySQL
+- **Auth:** HttpOnly cookie-based session (`express-session`)
 
-## React Compiler
+## Setup
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+### 1. Database
 
-Note: This will impact Vite dev & build performances.
+Create the database and run the initial schema. You can use the SQL below:
 
-## Expanding the ESLint configuration
+```sql
+CREATE DATABASE IF NOT EXISTS music_finder;
+USE music_finder;
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+-- Tables are auto-created by the server on startup.
+-- If you are migrating from a previous version, apply these migrations:
+
+-- Add profile_pic column to users (if upgrading)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic LONGTEXT;
+
+-- Recreate songs table with new columns (if upgrading from old schema)
+ALTER TABLE songs
+  ADD COLUMN IF NOT EXISTS frontend_id VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS videoId VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS sourceType VARCHAR(20) DEFAULT 'youtube',
+  ADD COLUMN IF NOT EXISTS artwork TEXT;
+
+-- Add UNIQUE constraint to songs (if upgrading)
+ALTER TABLE songs ADD UNIQUE KEY IF NOT EXISTS uq_user_song (userId, frontend_id);
+
+-- Recreate favorites to use frontend_song_id (if upgrading)
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS frontend_song_id VARCHAR(100);
+ALTER TABLE favorites ADD UNIQUE KEY IF NOT EXISTS uq_user_fav (userId, frontend_song_id);
+
+-- Add UNIQUE constraint to resume_times (if upgrading)
+ALTER TABLE resume_times ADD COLUMN IF NOT EXISTS frontend_song_id VARCHAR(100);
+ALTER TABLE resume_times ADD UNIQUE KEY IF NOT EXISTS uq_user_resume (userId, frontend_song_id);
+```
+
+> **Fresh install:** Tables are created automatically when the backend starts.
+
+### 2. Backend
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+The server runs on **http://localhost:3000**.
+
+#### Environment variables (optional)
+
+You can configure the backend with environment variables:
+
+| Variable         | Default           | Description              |
+|-----------------|-------------------|--------------------------|
+| `DB_HOST`       | `localhost`       | MySQL host               |
+| `DB_USER`       | `root`            | MySQL user               |
+| `DB_PASS`       | *(empty)*         | MySQL password           |
+| `DB_NAME`       | `music_finder`    | MySQL database name      |
+| `DB_PORT`       | `3306`            | MySQL port               |
+| `SESSION_SECRET`| `musicfinder_dev_secret` | Session secret key |
+| `FRONTEND_URL`  | `http://localhost:5173` | Frontend URL for CORS |
+
+### 3. Frontend
+
+```bash
+npm install
+npm run dev
+```
+
+The app runs on **http://localhost:5173**.
+
+## Authentication
+
+- Uses **HttpOnly cookie-based sessions** (`express-session`)
+- No data is stored in `localStorage` or `sessionStorage`
+- Session cookie is set on login/register and destroyed on logout
+- Refresh keeps you logged in (cookie persists for 7 days)
+
+## API Endpoints
+
+### Auth
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/register` | Register a new user |
+| `POST` | `/api/auth/login` | Login |
+| `POST` | `/api/auth/logout` | Logout (destroys session) |
+| `GET`  | `/api/auth/me` | Get current user info |
+
+### Songs
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/api/songs` | Get all songs for logged-in user |
+| `POST` | `/api/songs` | Add or update a song |
+| `DELETE` | `/api/songs/:frontendId` | Delete a song |
+
+### Favorites
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/api/favorites` | Get favorite song IDs |
+| `POST` | `/api/favorites` | Add a favorite |
+| `DELETE` | `/api/favorites/:frontendSongId` | Remove a favorite |
+
+### Resume Times
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/api/resume-times` | Get all resume times as `{id: seconds}` |
+| `POST` | `/api/resume-time` | Save/update a resume time (upsert) |
+
+### User Profile
+| Method | Path | Description |
+|--------|------|-------------|
+| `PUT`  | `/api/users/me/profile-pic` | Save profile picture (base64 DataURL) |
+| `PATCH` | `/api/users/me` | Update username and/or password |
+| `DELETE` | `/api/users/me` | Delete account and all associated data |
+

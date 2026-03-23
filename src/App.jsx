@@ -4,6 +4,7 @@ import Player from "./Player";
 import Login from "./Login";
 import Register from "./Register";
 import Profile from "./Profile";
+import { api } from "./api";
 
 const loadYouTubeAPI = () => {
   if (window.YT) return;
@@ -19,77 +20,22 @@ function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("loggedInUser");
-    setAuthUser(savedUser || null);
-    setLoadingAuth(false);
+    api('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(user => {
+        setAuthUser(user || null);
+        setLoadingAuth(false);
+      })
+      .catch(() => setLoadingAuth(false));
   }, []);
 
   const [lastSearchQuery, setLastSearchQuery] = useState("");
-
-  // ========= ✅ USER-SCOPED STORAGE KEYS =========
-  const userKey = useCallback(
-    (base) => {
-      const u = String(authUser || "").trim();
-      if (!u) return null;
-      return `${base}__${encodeURIComponent(u.toLowerCase())}`;
-    },
-    [authUser]
-  );
-
-  const readUserJson = useCallback(
-    (base, fallback) => {
-      const k = userKey(base);
-      if (!k) return fallback;
-      try {
-        const raw = localStorage.getItem(k);
-        return raw ? JSON.parse(raw) : fallback;
-      } catch {
-        return fallback;
-      }
-    },
-    [userKey]
-  );
-
-  const writeUserJson = useCallback(
-    (base, value) => {
-      const k = userKey(base);
-      if (!k) return;
-      try {
-        localStorage.setItem(k, JSON.stringify(value));
-      } catch {}
-    },
-    [userKey]
-  );
-
-  // migrate old global -> user on first login (optional but helpful)
-  const migrateGlobalToUserOnce = useCallback(() => {
-    if (!authUser) return;
-
-    const songsK = userKey("songs");
-    const favsK = userKey("favorites");
-    const timesK = userKey("resumeTimes");
-
-    try {
-      if (songsK && !localStorage.getItem(songsK) && localStorage.getItem("songs")) {
-        localStorage.setItem(songsK, localStorage.getItem("songs"));
-        localStorage.removeItem("songs");
-      }
-      if (favsK && !localStorage.getItem(favsK) && localStorage.getItem("favorites")) {
-        localStorage.setItem(favsK, localStorage.getItem("favorites"));
-        localStorage.removeItem("favorites");
-      }
-      if (timesK && !localStorage.getItem(timesK) && localStorage.getItem("resumeTimes")) {
-        localStorage.setItem(timesK, localStorage.getItem("resumeTimes"));
-        localStorage.removeItem("resumeTimes");
-      }
-    } catch {}
-  }, [authUser, userKey]);
 
   const [songs, setSongs] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [resumeTimes, setResumeTimes] = useState({});
 
-  // ✅ when authUser changes -> load that user's data
+  // Load user data from backend when authUser changes
   useEffect(() => {
     if (!authUser) {
       setSongs([]);
@@ -98,39 +44,22 @@ function App() {
       return;
     }
 
-    migrateGlobalToUserOnce();
-
-    const loadedSongs = readUserJson("songs", []);
-    const loadedFavs = readUserJson("favorites", []);
-    const loadedTimes = readUserJson("resumeTimes", {});
-
-    setSongs(Array.isArray(loadedSongs) ? loadedSongs : []);
-    setFavorites(Array.isArray(loadedFavs) ? loadedFavs : []);
-    setResumeTimes(loadedTimes && typeof loadedTimes === "object" ? loadedTimes : {});
-  }, [authUser, migrateGlobalToUserOnce, readUserJson]);
-
-  // ✅ save per-user only
-  useEffect(() => {
-    if (!authUser) return;
-    writeUserJson("songs", songs);
-  }, [songs, authUser, writeUserJson]);
-
-  useEffect(() => {
-    if (!authUser) return;
-    writeUserJson("favorites", favorites);
-  }, [favorites, authUser, writeUserJson]);
-
-  useEffect(() => {
-    if (!authUser) return;
-    writeUserJson("resumeTimes", resumeTimes);
-  }, [resumeTimes, authUser, writeUserJson]);
+    Promise.all([
+      api('/api/songs').then(r => r.ok ? r.json() : []),
+      api('/api/favorites').then(r => r.ok ? r.json() : []),
+      api('/api/resume-times').then(r => r.ok ? r.json() : {})
+    ]).then(([loadedSongs, loadedFavIds, loadedTimes]) => {
+      const songsArr = Array.isArray(loadedSongs) ? loadedSongs.map(s => ({ ...s, lyrics: null })) : [];
+      setSongs(songsArr);
+      const favIds = Array.isArray(loadedFavIds) ? loadedFavIds : [];
+      setFavorites(songsArr.filter(s => favIds.includes(s.id)));
+      setResumeTimes(loadedTimes && typeof loadedTimes === "object" ? loadedTimes : {});
+    }).catch(() => {});
+  }, [authUser]);
 
   const [currentSong, setCurrentSong] = useState(null);
-  const [view, setView] = useState(() => localStorage.getItem("currentView") || "home");
-  const [menuOpen, setMenuOpen] = useState(() => {
-    const saved = localStorage.getItem("menuOpen");
-    return saved !== null ? saved === "true" : false;
-  });
+  const [view, setView] = useState("home");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [showPlayer, setShowPlayer] = useState(true);
 
   const [noResults, setNoResults] = useState(false);
@@ -168,18 +97,12 @@ function App() {
   }, [searchResults]);
 
   const getAvatar = () => {
-    const email = authUser;
-    if (!email) return "";
-    try {
-      return localStorage.getItem(`profilePic_${email}`) || "";
-    } catch {
-      return "";
-    }
+    return authUser?.profile_pic || "";
   };
 
   const getMonogram = () => {
     if (!authUser) return "User";
-    const name = String(authUser).split("@")[0] || "";
+    const name = String(authUser.username || "").split("@")[0] || "";
     const parts = name.split(/[._-]/).filter(Boolean);
 
     const first = (parts[0]?.[0] || name[0] || "").toUpperCase();
@@ -217,17 +140,11 @@ function App() {
 
   const goTo = useCallback((nextView) => {
     setView(nextView);
-    localStorage.setItem("currentView", nextView);
     setMenuOpen(false);
-    localStorage.setItem("menuOpen", "false");
   }, []);
 
   const toggleMenuFromLogo = useCallback(() => {
-    setMenuOpen((prev) => {
-      const next = !prev;
-      localStorage.setItem("menuOpen", String(next));
-      return next;
-    });
+    setMenuOpen((prev) => !prev);
   }, []);
 
   const saveCurrentTimeBeforeSwitch = useCallback(() => {
@@ -373,7 +290,11 @@ function App() {
       saveCurrentTimeBeforeSwitch();
       setFavorites((prev) => {
         const isFav = prev.some((s) => s.id === song.id);
-        if (isFav) return prev.filter((s) => s.id !== song.id);
+        if (isFav) {
+          api(`/api/favorites/${encodeURIComponent(song.id)}`, { method: 'DELETE' }).catch(() => {});
+          return prev.filter((s) => s.id !== song.id);
+        }
+        api('/api/favorites', { method: 'POST', body: JSON.stringify({ frontendSongId: song.id }) }).catch(() => {});
         return [...prev, song];
       });
     },
@@ -383,7 +304,10 @@ function App() {
   const deleteSong = useCallback(
     (song) => {
       saveCurrentTimeBeforeSwitch();
+      api(`/api/songs/${encodeURIComponent(song.id)}`, { method: 'DELETE' }).catch(() => {});
+      api(`/api/favorites/${encodeURIComponent(song.id)}`, { method: 'DELETE' }).catch(() => {});
       setSongs((prev) => prev.filter((s) => s.id !== song.id));
+      setFavorites((prev) => prev.filter((s) => s.id !== song.id));
       setResumeTimes((prev) => {
         const copy = { ...prev };
         delete copy[song.id];
@@ -396,6 +320,7 @@ function App() {
   const deleteFavorite = useCallback(
     (song) => {
       saveCurrentTimeBeforeSwitch();
+      api(`/api/favorites/${encodeURIComponent(song.id)}`, { method: 'DELETE' }).catch(() => {});
       setFavorites((prev) => prev.filter((s) => s.id !== song.id));
       setResumeTimes((prev) => {
         const copy = { ...prev };
@@ -505,9 +430,9 @@ function App() {
           setCurrentSong(found);
           return prevSongs;
         } else {
-          const updated = [...prevSongs, newSong];
+          api('/api/songs', { method: 'POST', body: JSON.stringify(newSong) }).catch(() => {});
           setCurrentSong(newSong);
-          return updated;
+          return [...prevSongs, newSong];
         }
       });
 
@@ -516,29 +441,24 @@ function App() {
     [saveCurrentTimeBeforeSwitch]
   );
 
-  const handleLoginSuccess = () => {
-    setAuthUser(localStorage.getItem("loggedInUser"));
+  const handleLoginSuccess = (user) => {
+    setAuthUser(user);
     setView("home");
-    localStorage.setItem("currentView", "home");
     setMenuOpen(false);
-    localStorage.setItem("menuOpen", "false");
   };
 
-  const handleRegisterSuccess = () => {
-    setAuthUser(localStorage.getItem("loggedInUser"));
+  const handleRegisterSuccess = (user) => {
+    setAuthUser(user);
     setView("home");
-    localStorage.setItem("currentView", "home");
     setMenuOpen(false);
-    localStorage.setItem("menuOpen", "false");
   };
 
   const handleLogout = () => {
+    api('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setAuthUser(null);
     setAuthView("login");
     setView("home");
-    localStorage.setItem("currentView", "home");
     setMenuOpen(false);
-    localStorage.setItem("menuOpen", "false");
 
     // clear UI state so next user doesn't see old state while loading
     setCurrentSong(null);
@@ -560,6 +480,7 @@ function App() {
       ...prev,
       [cs.id]: time
     }));
+    api('/api/resume-time', { method: 'POST', body: JSON.stringify({ frontendSongId: cs.id, resume_time: time }) }).catch(() => {});
   }, []);
 
   const onPlayerClose = useCallback((timeAtClose) => {
@@ -569,6 +490,7 @@ function App() {
         ...prev,
         [cs.id]: timeAtClose
       }));
+      api('/api/resume-time', { method: 'POST', body: JSON.stringify({ frontendSongId: cs.id, resume_time: timeAtClose }) }).catch(() => {});
     }
     setShowPlayer(false);
   }, []);
@@ -1016,7 +938,7 @@ function App() {
             )}
 
             {view === "profile" && (
-              <Profile userEmail={authUser} songs={songs} favorites={favorites} onLogout={handleLogout} />
+              <Profile user={authUser} songs={songs} favorites={favorites} onLogout={handleLogout} onUserUpdate={setAuthUser} />
             )}
           </div>
 

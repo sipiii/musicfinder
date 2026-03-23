@@ -28,10 +28,7 @@ export default function Player({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
-  const [volume, setVolume] = useState(() => {
-    const saved = localStorage.getItem("playerVolume");
-    return saved ? parseInt(saved, 10) : 100;
-  });
+  const [volume, setVolume] = useState(100);
 
   const [muted, setMuted] = useState(false);
   const [lastVolume, setLastVolume] = useState(100);
@@ -127,10 +124,8 @@ export default function Player({
             iframeRef.current = iframe;
           }
 
-          // ✅ kezdeti hangerő beállítás (csak onReady-ben)
-          const saved = localStorage.getItem("playerVolume");
-          const initialVol = saved ? parseInt(saved, 10) : volume;
-          newPlayer.setVolume(initialVol);
+          // kezdeti hangerő beállítás (csak onReady-ben)
+          newPlayer.setVolume(volume);
 
           setTimeout(() => {
             if (resumeTime > 0) {
@@ -277,7 +272,6 @@ export default function Player({
   const handleVolumeChange = (e) => {
     const vol = Number(e.target.value);
     setVolume(vol);
-    localStorage.setItem("playerVolume", vol.toString());
 
     if (vol === 0) setMuted(true);
     if (vol > 0 && muted) setMuted(false);
@@ -518,13 +512,11 @@ export default function Player({
               if (!muted) {
                 setLastVolume(volume);
                 setVolume(0);
-                localStorage.setItem("playerVolume", "0");
                 p?.setVolume?.(0);
                 p?.mute?.();
                 setMuted(true);
               } else {
                 setVolume(lastVolume);
-                localStorage.setItem("playerVolume", lastVolume.toString());
                 p?.setVolume?.(lastVolume);
                 p?.unMute?.();
                 setMuted(false);
