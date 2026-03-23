@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "./api";
 
-export default function Profile({ userEmail, songs = [], favorites = [], onLogout }) {
+export default function Profile({ user, songs = [], favorites = [], onLogout, onUserUpdate }) {
   const fileInputRef = useRef(null);
 
   // ===== Profile picture (draft vs saved) =====
@@ -9,41 +10,34 @@ export default function Profile({ userEmail, songs = [], favorites = [], onLogou
   const [savedPicDataUrl, setSavedPicDataUrl] = useState("");
 
   // ===== Email (draft) =====
-  const [newEmail, setNewEmail] = useState(userEmail || "");
-  const [confirmEmail, setConfirmEmail] = useState(userEmail || "");
+  const [newEmail, setNewEmail] = useState(user?.username || "");
+  const [confirmEmail, setConfirmEmail] = useState(user?.username || "");
   const [focusedInput, setFocusedInput] = useState(null);
 
   // ===== Password (draft) =====
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
 
-  // 🔒 like Login/Register
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // bottom status: ONLY the items that actually changed this save
   const [saveMsg, setSaveMsg] = useState("");
 
-  // load current saved profile pic into both saved+draft
+  // load profile pic from user prop
   useEffect(() => {
-    let v = "";
-    try {
-      v = localStorage.getItem(`profilePic_${userEmail}`) || "";
-    } catch {
-      v = "";
-    }
+    const v = user?.profile_pic || "";
     setSavedPicDataUrl(v);
     setDraftPicDataUrl(v);
     setSelectedFileName("No file selected");
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [userEmail]);
+  }, [user?.profile_pic]);
 
   // sync email fields (draft only)
   useEffect(() => {
-    const v = userEmail || "";
+    const v = user?.username || "";
     setNewEmail(v);
     setConfirmEmail(v);
-  }, [userEmail]);
+  }, [user?.username]);
 
   const favoriteArtist = useMemo(() => {
     const all = Array.isArray(songs) ? songs : [];
@@ -68,10 +62,6 @@ export default function Profile({ userEmail, songs = [], favorites = [], onLogou
     return best || "—";
   }, [songs]);
 
-  const validateEmail = (value) => {
-    const v = String(value || "").trim();
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  };
 
   // draft-only
   const handleFilePick = (e) => {
@@ -92,7 +82,7 @@ export default function Profile({ userEmail, songs = [], favorites = [], onLogou
     reader.readAsDataURL(file);
   };
 
-  // draft-only (no localStorage until Save)
+  // draft-only
   const handleDeletePicture = () => {
     setSaveMsg("");
     setDraftPicDataUrl("");
@@ -100,182 +90,79 @@ export default function Profile({ userEmail, songs = [], favorites = [], onLogou
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     try {
-      localStorage.removeItem("loggedInUser");
-      localStorage.removeItem("loggedInPassword");
+      await api('/api/users/me', { method: 'DELETE' });
     } catch {}
-
-    try {
-      localStorage.removeItem(`profilePic_${userEmail}`);
-    } catch {}
-
-    try {
-      const raw = localStorage.getItem("users");
-      if (raw) {
-        const users = JSON.parse(raw);
-        if (Array.isArray(users)) {
-          const updated = users.filter((u) => {
-            if (!u) return false;
-            const em = (u.email || u.user || u.username || "").toString().trim();
-            return em !== userEmail;
-          });
-          localStorage.setItem("users", JSON.stringify(updated));
-        }
-      }
-    } catch {}
-
     if (onLogout) onLogout();
   };
 
-  const saveAll = () => {
-    // we will only list things that actually changed (and were saved successfully)
+  const saveAll = async () => {
     const changed = [];
 
-    // current identity
-    const prevEmail = String(localStorage.getItem("loggedInUser") || userEmail || "").trim();
-    let finalEmail = prevEmail;
+    const prevUsername = user?.username || "";
 
     // 1) PROFILE PICTURE
-    // only if draft differs from saved
     if (draftPicDataUrl !== savedPicDataUrl) {
       try {
-        const key = `profilePic_${prevEmail}`;
-        if (!draftPicDataUrl) localStorage.removeItem(key);
-        else localStorage.setItem(key, draftPicDataUrl);
-
-        setSavedPicDataUrl(draftPicDataUrl || "");
-        changed.push("Profile picture saved.");
-      } catch {
-        // if failed, do not claim it changed
-      }
+        const res = await api('/api/users/me/profile-pic', {
+          method: 'PUT',
+          body: JSON.stringify({ profile_pic: draftPicDataUrl || null })
+        });
+        if (res.ok) {
+          setSavedPicDataUrl(draftPicDataUrl || "");
+          if (onUserUpdate) onUserUpdate(prev => ({ ...prev, profile_pic: draftPicDataUrl || null }));
+          changed.push("Profile picture saved.");
+        }
+      } catch {}
     }
 
-    // 2) EMAIL
+    // 2) USERNAME (email field)
     const nextEmail = String(newEmail || "").trim();
     const confEmail = String(confirmEmail || "").trim();
 
-    const emailRequestedChange = nextEmail !== prevEmail || confEmail !== prevEmail;
-    if (emailRequestedChange) {
-      if (nextEmail && confEmail && nextEmail === confEmail && validateEmail(nextEmail) && nextEmail !== prevEmail) {
-        // check duplicates
-        let dup = false;
-        try {
-          const raw = localStorage.getItem("users");
-          if (raw) {
-            const users = JSON.parse(raw);
-            if (Array.isArray(users)) {
-              dup = users.some((u) => {
-                const em = (u?.email || u?.user || u?.username || "").toString().trim();
-                return em.toLowerCase() === nextEmail.toLowerCase() && em.toLowerCase() !== prevEmail.toLowerCase();
-              });
-            }
-          }
-        } catch {}
-
-        if (!dup) {
-          // update loggedInUser
-          try {
-            localStorage.setItem("loggedInUser", nextEmail);
-          } catch {}
-
-          // migrate profile picture key
-          try {
-            const oldKey = `profilePic_${prevEmail}`;
-            const newKey = `profilePic_${nextEmail}`;
-            const pic = localStorage.getItem(oldKey);
-            if (pic !== null) {
-              localStorage.setItem(newKey, pic);
-              localStorage.removeItem(oldKey);
-            } else {
-              localStorage.removeItem(newKey);
-            }
-          } catch {}
-
-          // update users array
-          try {
-            const raw = localStorage.getItem("users");
-            if (raw) {
-              const users = JSON.parse(raw);
-              if (Array.isArray(users)) {
-                const updated = users.map((u) => {
-                  if (!u) return u;
-                  const em = (u.email || u.user || u.username || "").toString().trim();
-                  if (em !== prevEmail) return u;
-
-                  const copy = { ...u };
-                  if (Object.prototype.hasOwnProperty.call(copy, "email")) copy.email = nextEmail;
-                  if (Object.prototype.hasOwnProperty.call(copy, "user")) copy.user = nextEmail;
-                  if (Object.prototype.hasOwnProperty.call(copy, "username")) copy.username = nextEmail;
-                  return copy;
-                });
-                localStorage.setItem("users", JSON.stringify(updated));
-              }
-            }
-          } catch {}
-
-          finalEmail = nextEmail;
-
-          // refresh pic snapshot under new email (so UI stays correct)
-          try {
-            const v = localStorage.getItem(`profilePic_${nextEmail}`) || "";
-            setSavedPicDataUrl(v);
-            setDraftPicDataUrl(v);
-            setSelectedFileName("No file selected");
-            if (fileInputRef.current) fileInputRef.current.value = "";
-          } catch {}
-
+    if (nextEmail && nextEmail === confEmail && nextEmail !== prevUsername) {
+      try {
+        const res = await api('/api/users/me', {
+          method: 'PATCH',
+          body: JSON.stringify({ username: nextEmail })
+        });
+        if (res.ok) {
+          if (onUserUpdate) onUserUpdate(prev => ({ ...prev, username: nextEmail }));
           changed.push("Email saved.");
+        } else {
+          const data = await res.json().catch(() => ({}));
+          changed.push(`Email error: ${data.error || 'failed'}`);
         }
-      }
+      } catch {}
     }
 
     // 3) PASSWORD
     const p1 = String(newPass || "").trim();
     const p2 = String(confirmPass || "").trim();
 
-    // only attempt if user entered anything
     if (p1 || p2) {
       if (p1 && p2 && p1 === p2 && p1.length >= 3) {
         try {
-          localStorage.setItem("loggedInPassword", p1);
-        } catch {}
-
-        // update users array for finalEmail
-        try {
-          const raw = localStorage.getItem("users");
-          if (raw) {
-            const users = JSON.parse(raw);
-            if (Array.isArray(users)) {
-              const updated = users.map((u) => {
-                if (!u) return u;
-                const em = (u.email || u.user || u.username || "").toString().trim();
-                if (em !== finalEmail) return u;
-                return { ...u, password: p1 };
-              });
-              localStorage.setItem("users", JSON.stringify(updated));
-            }
+          const res = await api('/api/users/me', {
+            method: 'PATCH',
+            body: JSON.stringify({ password: p1 })
+          });
+          if (res.ok) {
+            setNewPass("");
+            setConfirmPass("");
+            setShowNewPassword(false);
+            setShowConfirmPassword(false);
+            changed.push("Password saved.");
+          } else {
+            const data = await res.json().catch(() => ({}));
+            changed.push(`Password error: ${data.error || 'failed'}`);
           }
         } catch {}
-
-        setNewPass("");
-        setConfirmPass("");
-        setShowNewPassword(false);
-        setShowConfirmPassword(false);
-
-        changed.push("Password saved.");
       }
     }
 
-    // keep email inputs synced to what we actually have as logged in user (UI-only)
-    const nowLoggedIn = String(localStorage.getItem("loggedInUser") || "").trim();
-    if (nowLoggedIn) {
-      setNewEmail(nowLoggedIn);
-      setConfirmEmail(nowLoggedIn);
-    }
-
-    // show ONLY changed items; if nothing changed, show nothing (empty string)
-    setSaveMsg(changed.join(" "));
+    setSaveMsg(changed.join(" ") || "");
   };
 
   // ====== UI helpers (lock-in-input pattern as Login/Register) ======

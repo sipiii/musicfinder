@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { api } from "./api";
 
 export default function Register({ onSwitch, onRegister }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -8,7 +9,7 @@ export default function Register({ onSwitch, onRegister }) {
 
   const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     const em = email.trim();
     const pw = password.trim();
 
@@ -22,33 +23,22 @@ export default function Register({ onSwitch, onRegister }) {
       return;
     }
 
-    let users = [];
     try {
-      const raw = localStorage.getItem("users");
-      users = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(users)) users = [];
+      const res = await api('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ username: em, password: pw })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Registration failed");
+        return;
+      }
+      const data = await res.json();
+      setError("");
+      onRegister(data.user);
     } catch {
-      users = [];
+      setError("Connection error. Is the server running?");
     }
-
-    const exists = users.some((u) => String(u?.email || "").trim().toLowerCase() === em.toLowerCase());
-    if (exists) {
-      setError("This email is already registered. Please log in.");
-      return;
-    }
-
-    const nextUsers = [...users, { email: em, password: pw }];
-    try {
-      localStorage.setItem("users", JSON.stringify(nextUsers));
-    } catch {}
-
-    try {
-      localStorage.setItem("loggedInUser", em);
-      localStorage.setItem("loggedInPassword", pw);
-    } catch {}
-
-    setError("");
-    onRegister();
   };
 
   return (
