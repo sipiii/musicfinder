@@ -3,6 +3,7 @@ const mysql = require('mysql');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const session = require('express-session');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
@@ -18,6 +19,8 @@ if (!process.env.SESSION_SECRET && process.env.NODE_ENV === 'production') {
     process.exit(1);
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'musicfinder_dev_secret',
     resave: false,
@@ -25,9 +28,29 @@ app.use(session({
     cookie: {
         httpOnly: true,
         sameSite: 'lax',
+        secure: isProduction,
         maxAge: 7 * 24 * 60 * 60 * 1000
     }
 }));
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+
+app.use('/api/auth', authLimiter);
+app.use('/api', apiLimiter);
 
 const db = mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
